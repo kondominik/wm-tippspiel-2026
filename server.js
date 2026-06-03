@@ -959,15 +959,17 @@ app.post('/api/admin/game', requireAdmin, async(req,res)=>{
   try {
     const {id,home,away,kickoff,deadline,home_score,away_score}=req.body;
 
-    const gameId = Number(id);
-    if (!Number.isInteger(gameId) || gameId < 1) {
-      return res.status(400).json({error:'Ungueltige Spiel-ID'});
+    // Robustere ID-Verarbeitung: Browser/Render koennen Werte als Zahl oder Text liefern.
+    // Entscheidend ist, ob die Datenbank ein Spiel mit dieser ID findet.
+    const gameId = String(id ?? '').trim();
+    if (!gameId) {
+      return res.status(400).json({error:'Spiel-ID fehlt'});
     }
 
     const parseScore = (value) => {
       if (value === '' || value === null || value === undefined) return null;
-      const parsed = Number.parseInt(String(value), 10);
-      if (!Number.isInteger(parsed) || parsed < 0) throw new Error('Ergebnis muss eine Zahl ab 0 sein');
+      const parsed = Number.parseInt(String(value).trim(), 10);
+      if (!Number.isFinite(parsed) || parsed < 0) throw new Error('Ergebnis muss eine Zahl ab 0 sein');
       return parsed;
     };
 
@@ -978,18 +980,18 @@ app.post('/api/admin/game', requireAdmin, async(req,res)=>{
       `UPDATE games
        SET home=$2,
            away=$3,
-           kickoff=$4,
-           deadline=$5,
+           kickoff=NULLIF($4, '')::timestamptz,
+           deadline=NULLIF($5, '')::timestamptz,
            home_score=$6,
            away_score=$7,
            updated_at=NOW()
-       WHERE id=$1
+       WHERE id=$1::int
        RETURNING *`,
-      [gameId, home || '', away || '', kickoff || null, deadline || null, hs, as]
+      [gameId, home || '', away || '', kickoff || '', deadline || '', hs, as]
     );
 
     if (updated.rowCount === 0) {
-      return res.status(404).json({error:'Spiel nicht gefunden'});
+      return res.status(404).json({error:`Spiel ${gameId} wurde in der Datenbank nicht gefunden`});
     }
 
     await q(
@@ -999,10 +1001,11 @@ app.post('/api/admin/game', requireAdmin, async(req,res)=>{
 
     res.json({ok:true, game: updated.rows[0]});
   } catch (err) {
-    console.error('Fehler beim Speichern des Spiels:', err);
+    console.error('Fehler beim Speichern des Spiels:', { message: err.message, body: req.body });
     res.status(400).json({error: err.message || 'Spiel konnte nicht gespeichert werden'});
   }
 });
+
 app.post('/api/admin/participant', requireAdmin, async(req,res)=>{
   const {id,name,pin}=req.body; await q('UPDATE participants SET name=$2,pin=$3 WHERE id=$1',[id,name,pin]); res.json({ok:true});
 });

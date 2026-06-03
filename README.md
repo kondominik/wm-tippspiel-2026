@@ -1,18 +1,13 @@
-# WM Tippspiel 2026 - Render Version
+# WM Tippspiel 2026 - Spielplan Update
 
-Node/Express App mit PostgreSQL/Supabase Datenbank.
+Dieses Update ersetzt die Platzhalterspiele durch den WM-2026-Spielplan.
 
-## Accounts
-- GitHub: Repository erstellen und alle Dateien aus diesem Ordner hochladen.
-- Supabase: kostenloses Projekt erstellen, Postgres Connection String kopieren.
-- Render: Web Service aus GitHub Repo erstellen.
+## Nach dem Deploy
 
-## Render Einstellungen
-- Build Command: `npm install`
-- Start Command: `npm start`
-- Environment Variables:
-  - `DATABASE_URL` = Supabase Connection String
-  - `ADMIN_PASSWORD` = eigenes Admin-Passwort
+1. App öffnen.
+2. Admin-Passwort eingeben.
+3. Admin öffnen.
+4. Button **WM-Spielplan 2026 importieren / Platzhalter überschreiben** klicken.
+5. Danach sollten die Platzhalter `Team 1A` usw. ersetzt sein.
 
-## Standard Teilnehmer-PINs
-Siehe Datei `teilnehmer_pins.txt`. Bitte nach dem ersten Login im Adminbereich ändern.
+Teilnehmer, PINs, bereits eingetragene Tipps und Ergebnisse bleiben erhalten.

@@ -957,41 +957,49 @@ app.post('/api/admin/import-schedule', requireAdmin, async(req,res)=>{
 });
 app.post('/api/admin/game', requireAdmin, async(req,res)=>{
   try {
-    const {id,home,away,kickoff,deadline,home_score,away_score}=req.body;
+    // Accept all common field names, because different frontend versions may send id/game_id/gameId.
+    const body = req.body || {};
+    const rawId = body.id ?? body.game_id ?? body.gameId;
+    const gameId = Number.parseInt(String(rawId), 10);
 
-    // Robustere ID-Verarbeitung: Browser/Render koennen Werte als Zahl oder Text liefern.
-    // Entscheidend ist, ob die Datenbank ein Spiel mit dieser ID findet.
-    const gameId = String(id ?? '').trim();
-    if (!gameId) {
-      return res.status(400).json({error:'Spiel-ID fehlt'});
+    if (!Number.isInteger(gameId) || gameId < 1 || gameId > 104) {
+      return res.status(400).json({error:`Spiel-ID fehlt oder ist ungueltig. Empfangen: ${JSON.stringify(body)}`});
     }
 
     const parseScore = (value) => {
       if (value === '' || value === null || value === undefined) return null;
-      const parsed = Number.parseInt(String(value).trim(), 10);
-      if (!Number.isFinite(parsed) || parsed < 0) throw new Error('Ergebnis muss eine Zahl ab 0 sein');
+      const parsed = Number.parseInt(String(value), 10);
+      if (!Number.isInteger(parsed) || parsed < 0) throw new Error('Ergebnis muss eine Zahl ab 0 sein');
       return parsed;
     };
 
-    const hs = parseScore(home_score);
-    const as = parseScore(away_score);
+    const hs = parseScore(body.home_score);
+    const as = parseScore(body.away_score);
 
     const updated = await q(
       `UPDATE games
        SET home=$2,
            away=$3,
-           kickoff=NULLIF($4, '')::timestamptz,
-           deadline=NULLIF($5, '')::timestamptz,
+           kickoff=$4,
+           deadline=$5,
            home_score=$6,
            away_score=$7,
            updated_at=NOW()
-       WHERE id=$1::int
+       WHERE id=$1
        RETURNING *`,
-      [gameId, home || '', away || '', kickoff || '', deadline || '', hs, as]
+      [
+        gameId,
+        body.home || '',
+        body.away || '',
+        body.kickoff || null,
+        body.deadline || null,
+        hs,
+        as
+      ]
     );
 
     if (updated.rowCount === 0) {
-      return res.status(404).json({error:`Spiel ${gameId} wurde in der Datenbank nicht gefunden`});
+      return res.status(404).json({error:'Spiel nicht gefunden'});
     }
 
     await q(
@@ -1001,11 +1009,10 @@ app.post('/api/admin/game', requireAdmin, async(req,res)=>{
 
     res.json({ok:true, game: updated.rows[0]});
   } catch (err) {
-    console.error('Fehler beim Speichern des Spiels:', { message: err.message, body: req.body });
+    console.error('Fehler beim Speichern des Spiels:', err);
     res.status(400).json({error: err.message || 'Spiel konnte nicht gespeichert werden'});
   }
 });
-
 app.post('/api/admin/participant', requireAdmin, async(req,res)=>{
   const {id,name,pin}=req.body; await q('UPDATE participants SET name=$2,pin=$3 WHERE id=$1',[id,name,pin]); res.json({ok:true});
 });

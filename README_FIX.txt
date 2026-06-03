@@ -1,1 +1,1 @@
-Fix v5: server.js ersetzt die Admin-Ergebnis-Speicherung. Akzeptiert id, game_id und gameId. Bitte nur server.js in GitHub ersetzen, committen und Render-Deploy abwarten. Danach Admin-Spiel speichern testen.
+Fix v6: public/app.js ersetzt. Ursache: Header wurden überschrieben, dadurch kam req.body im Server leer an. Nur public/app.js in GitHub ersetzen, committen und Render deployen lassen.

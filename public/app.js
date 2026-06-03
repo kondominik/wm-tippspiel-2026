@@ -1,7 +1,16 @@
 let state=null, me=null, adminPass='';
 const $=id=>document.getElementById(id);
 function dt(x){return x?new Date(x).toLocaleString('de-AT',{dateStyle:'short',timeStyle:'short'}):'-'}
-async function api(url,opt={}){const r=await fetch(url,{headers:{'Content-Type':'application/json',...(opt.headers||{})},...opt}); const j=await r.json().catch(()=>({})); if(!r.ok) throw new Error(j.error||'Fehler'); return j;}
+async function api(url,opt={}){
+  const { headers: optHeaders = {}, ...rest } = opt;
+  const r = await fetch(url, {
+    ...rest,
+    headers: { 'Content-Type': 'application/json', ...optHeaders }
+  });
+  const j = await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(j.error||'Fehler');
+  return j;
+}
 async function load(){state=await api('/api/state'); renderLogin(); if(me) renderAll();}
 function renderLogin(){ $('loginName').innerHTML=(state?.participants||[]).map(p=>`<option>${p.name}</option>`).join(''); }
 $('loginBtn').onclick=async()=>{try{const r=await api('/api/login',{method:'POST',body:JSON.stringify({name:$('loginName').value,pin:$('loginPin').value})}); me=r.participant; $('app').hidden=false; $('loginMsg').textContent=' eingeloggt'; await loadMy(); renderAll();}catch(e){$('loginMsg').textContent=e.message;}};
@@ -32,17 +41,7 @@ function renderAdmin(data){
  $('admin').innerHTML='<h2>Admin-Kontrolle</h2><p class="muted">Hier kontrollierst du x/12 Tipps, trägst Ergebnisse ein und kannst Tipps nachtragen.</p><div class="adminrow"><b>Spielplan</b><br><button onclick="adminImportSchedule()">WM-Spielplan 2026 importieren / Platzhalter überschreiben</button><p class="muted">Überschreibt Spielnamen, Phasen, Anpfiffzeiten und Tippfristen. Tipps, Teilnehmer und Ergebnisse bleiben erhalten.</p></div>'+data.games.map(g=>`<div class="adminrow"><b>Spiel ${g.id}</b> <span class="pill">${counts[g.id]||0}/12 Tipps gespeichert</span><br><input id="gh${g.id}" value="${g.home||''}" placeholder="Heim"><input id="ga${g.id}" value="${g.away||''}" placeholder="Auswärts"><input id="gko${g.id}" value="${g.kickoff||''}" placeholder="Anpfiff ISO"><input id="gdl${g.id}" value="${g.deadline||''}" placeholder="Frist ISO"><br>Ergebnis <input class="score" id="grh${g.id}" type="number" value="${g.home_score??''}"> : <input class="score" id="gra${g.id}" type="number" value="${g.away_score??''}"><button onclick="adminSaveGame(${g.id})">Spiel speichern</button><br>Nachtrag Tipp: <select id="ap${g.id}">${parts}</select> <input class="score" id="ath${g.id}" type="number"> : <input class="score" id="ata${g.id}" type="number"><button onclick="adminSaveTip(${g.id})">Tipp nachtragen</button></div>`).join('')+'<h2>Teilnehmer/PINs</h2>'+data.participants.map(p=>`<div><input id="pn${p.id}" value="${p.name}"><input id="pp${p.id}" value="${p.pin}"><button onclick="adminPart(${p.id})">speichern</button></div>`).join('')+'<h2>Audit-Log</h2><table class="table">'+data.audit.map(a=>`<tr><td>${dt(a.created_at)}</td><td>${a.actor}</td><td>${a.action}</td><td>${a.details}</td></tr>`).join('')+'</table>';
 }
 window.adminImportSchedule=async()=>{if(!confirm('WM-Spielplan importieren und Platzhalter überschreiben? Teilnehmer, Tipps und Ergebnisse bleiben erhalten.')) return; try{const r=await api('/api/admin/import-schedule',{method:'POST',headers:{'x-admin-password':adminPass}}); alert(`Spielplan importiert: ${r.count} Spiele`); await load(); await reloadAdmin();}catch(e){alert(e.message)}};
-window.adminSaveGame=async(id)=>{
- try{
-  const result=await api('/api/admin/game',{method:'POST',headers:{'x-admin-password':adminPass},body:JSON.stringify({id,home:$('gh'+id).value,away:$('ga'+id).value,kickoff:$('gko'+id).value,deadline:$('gdl'+id).value,home_score:$('grh'+id).value,away_score:$('gra'+id).value})});
-  await load();
-  await reloadAdmin();
-  const g=result.game||{};
-  alert(`Spiel gespeichert. Ergebnis: ${g.home_score ?? '-'}:${g.away_score ?? '-'}`);
- }catch(e){
-  alert(e.message);
- }
-};
+window.adminSaveGame=async(id)=>{await api('/api/admin/game',{method:'POST',headers:{'x-admin-password':adminPass},body:JSON.stringify({id,home:$('gh'+id).value,away:$('ga'+id).value,kickoff:$('gko'+id).value,deadline:$('gdl'+id).value,home_score:$('grh'+id).value,away_score:$('gra'+id).value})}); alert('Spiel gespeichert')};
 window.adminSaveTip=async(id)=>{await api('/api/admin/tip',{method:'POST',headers:{'x-admin-password':adminPass},body:JSON.stringify({game_id:id,participant_id:$('ap'+id).value,home_score:$('ath'+id).value,away_score:$('ata'+id).value})}); alert('Tipp gespeichert')};
 window.adminPart=async(id)=>{await api('/api/admin/participant',{method:'POST',headers:{'x-admin-password':adminPass},body:JSON.stringify({id,name:$('pn'+id).value,pin:$('pp'+id).value})}); alert('Teilnehmer gespeichert'); await load(); await reloadAdmin();};
 load(); setInterval(load,30000);

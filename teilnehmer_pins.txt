@@ -1,0 +1,12 @@
+Teilnehmer 1: 1001
+Teilnehmer 2: 1002
+Teilnehmer 3: 1003
+Teilnehmer 4: 1004
+Teilnehmer 5: 1005
+Teilnehmer 6: 1006
+Teilnehmer 7: 1007
+Teilnehmer 8: 1008
+Teilnehmer 9: 1009
+Teilnehmer 10: 1010
+Teilnehmer 11: 1011
+Teilnehmer 12: 1012

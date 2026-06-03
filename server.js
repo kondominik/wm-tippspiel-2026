@@ -860,27 +860,28 @@ const officialSchedule = [
 
 async function q(text, params=[]) { return pool.query(text, params); }
 
+function deadline30MinutesBefore(kickoff) {
+  if (!kickoff) return null;
+  const d = new Date(kickoff);
+  if (Number.isNaN(d.getTime())) return null;
+  return new Date(d.getTime() - 30 * 60 * 1000).toISOString();
+}
+
 async function importOfficialSchedule() {
   for (const g of officialSchedule) {
+    const deadline = deadline30MinutesBefore(g.kickoff);
     await q(`INSERT INTO games(id,phase,home,away,kickoff,deadline,updated_at)
              VALUES($1,$2,$3,$4,$5,$6,NOW())
              ON CONFLICT(id) DO UPDATE SET
                phase=$2, home=$3, away=$4, kickoff=$5, deadline=$6, updated_at=NOW()`,
-      [g.id, g.phase, g.home, g.away, g.kickoff, g.deadline]);
+      [g.id, g.phase, g.home, g.away, g.kickoff, deadline]);
   }
   await q('INSERT INTO audit(actor,action,details) VALUES($1,$2,$3)',
-    ['Admin','WM-Spielplan importiert/aktualisiert','104 Spiele mit Wien/MESZ-Zeiten importiert']);
+    ['Admin','WM-Spielplan importiert/aktualisiert','104 Spiele mit Frist 30 Minuten vor Anpfiff importiert']);
 }
 
 function deadlineFor(n, kickoff) {
-  const found = officialSchedule.find(g => g.id === n);
-  if (found) return found.deadline;
-  if (kickoff) {
-    const d = new Date(kickoff);
-    d.setHours(d.getHours() - 2);
-    return d.toISOString();
-  }
-  return null;
+  return deadline30MinutesBefore(kickoff);
 }
 function phaseFor(n) {
   if (n <= 72) return 'Gruppenphase';
